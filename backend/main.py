@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
@@ -58,3 +58,14 @@ def read_tasks():
     with Session(engine) as session:
         tasks = session.exec(select(Task)).all()
         return tasks
+
+
+@app.delete("/tasks/{task_id}")
+def delete_task(task_id: int):
+    with Session(engine) as session:
+        task = session.get(Task, task_id)
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+        session.delete(task)
+        session.commit()
+        return {"ok": True}
