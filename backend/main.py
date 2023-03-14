@@ -61,7 +61,7 @@ def on_startup():
     create_db_and_tables()
 
 
-@app.post("/tasks/", response_model=TaskRead)
+@app.post("/tasks/", response_model=Task)
 def create_task(task: TaskCreate):
     with Session(engine) as session:
         session.add(task)
@@ -70,7 +70,7 @@ def create_task(task: TaskCreate):
         return task
 
 
-@app.get("/tasks/", response_model=list[TaskRead])
+@app.get("/tasks/", response_model=list[Task])
 def read_tasks():
     with Session(engine) as session:
         tasks = session.exec(select(Task)).all()
@@ -86,6 +86,7 @@ def read_task(task_id: int):
         return task
 
 
+# TODO: Fix this, unprocessable entity with id
 @app.patch("/tasks/{hero_id}", response_model=TaskRead)
 def update_task(task_id: int, task: TaskUpdate):
     with Session(engine) as session:
