@@ -5,11 +5,28 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 
-class Task(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+class TaskBase(SQLModel):
     text: str = Field(index=True)
     day: str
     reminder: bool
+
+
+class Task(TaskBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+
+
+class TaskRead(TaskBase):
+    pass
+
+
+class TaskCreate(TaskBase):
+    pass
+
+
+class TaskUpdate(SQLModel):
+    text: Optional[str] = None
+    day: Optional[str] = None
+    reminder: Optional[bool] = None
 
 
 sqlite_file_name = "database.db"
@@ -44,8 +61,8 @@ def on_startup():
     create_db_and_tables()
 
 
-@app.post("/tasks/")
-def create_task(task: Task):
+@app.post("/tasks/", response_model=TaskRead)
+def create_task(task: TaskCreate):
     with Session(engine) as session:
         session.add(task)
         session.commit()
@@ -53,11 +70,35 @@ def create_task(task: Task):
         return task
 
 
-@app.get("/tasks/")
+@app.get("/tasks/", response_model=list[TaskRead])
 def read_tasks():
     with Session(engine) as session:
         tasks = session.exec(select(Task)).all()
         return tasks
+
+
+@app.get("/tasks/{task_id}", response_model=TaskRead)
+def read_task(task_id: int):
+    with Session(engine) as session:
+        task = session.get(Task, task_id)
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+        return task
+
+
+@app.patch("/tasks/{hero_id}", response_model=TaskRead)
+def update_task(task_id: int, task: TaskUpdate):
+    with Session(engine) as session:
+        db_task = session.get(Task, task_id)
+        if not db_task:
+            raise HTTPException(status_code=404, detail="Task not found")
+        task_data = task.dict(exclude_unset=True)
+        for key, value in task_data.items():
+            setattr(db_task, key, value)
+        session.add(db_task)
+        session.commit()
+        session.refresh(db_task)
+        return db_task
 
 
 @app.delete("/tasks/{task_id}")
